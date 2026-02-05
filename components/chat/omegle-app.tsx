@@ -127,6 +127,90 @@ export function OmegleApp() {
       }
     },
 
+    onPartnerOffline: (message: string) => {
+      console.log("[v0] Partner offline:", message);
+      setMessages([]);
+      setMatchedUser(null);
+      setRoomId(null);
+      
+      setError(`⏱️ ${message}`);
+      
+      // Auto-reconnect after showing message
+      setTimeout(() => {
+        setError(null);
+        setAppState("waiting");
+        if (session?.interests) {
+          joinQueue(session.userName, session.interests).catch((err) => {
+            console.error("[v0] Auto-join failed:", err);
+            setError("Failed to rejoin queue");
+          });
+        }
+      }, 2000);
+    },
+
+    onUserSkipped: (message: string) => {
+      console.log("[v0] User skipped:", message);
+      setMessages([]);
+      setMatchedUser(null);
+      setRoomId(null);
+      
+      setError(`👋 ${message}`);
+      
+      // Auto-reconnect after showing message
+      setTimeout(() => {
+        setError(null);
+        setAppState("waiting");
+        if (session?.interests) {
+          joinQueue(session.userName, session.interests).catch((err) => {
+            console.error("[v0] Auto-join failed:", err);
+            setError("Failed to rejoin queue");
+          });
+        }
+      }, 2000);
+    },
+
+    onUserBlocked: (message: string) => {
+      console.log("[v0] User blocked:", message);
+      setMessages([]);
+      setMatchedUser(null);
+      setRoomId(null);
+      
+      setError(`🚫 ${message}`);
+      
+      // Auto-reconnect after showing message
+      setTimeout(() => {
+        setError(null);
+        setAppState("waiting");
+        if (session?.interests) {
+          joinQueue(session.userName, session.interests).catch((err) => {
+            console.error("[v0] Auto-join failed:", err);
+            setError("Failed to rejoin queue");
+          });
+        }
+      }, 2000);
+    },
+
+    onUserDisconnected: (message: string) => {
+      console.log("[v0] User disconnected:", message);
+      setMessages([]);
+      setMatchedUser(null);
+      setRoomId(null);
+      
+      setError(`🔌 ${message}`);
+      
+      // Auto-reconnect after showing message
+      setTimeout(() => {
+        setError(null);
+        setAppState("waiting");
+        if (session?.interests) {
+          joinQueue(session.userName, session.interests).catch((err) => {
+            console.error("[v0] Auto-join failed:", err);
+            setError("Failed to rejoin queue");
+          });
+        }
+      }, 2000);
+    },
+
     onError: (errorMsg: string) => {
       console.error("[v0] Error:", errorMsg);
       setError(errorMsg);

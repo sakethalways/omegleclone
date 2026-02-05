@@ -9,6 +9,10 @@ interface UseChatOptions {
   onMessageReceived?: (message: ChatMessage) => void;
   onTypingUpdate?: (isTyping: boolean) => void;
   onUserLeft?: (reason: string, userLeftId: string) => void;
+  onPartnerOffline?: (message: string) => void;
+  onUserSkipped?: (message: string) => void;
+  onUserBlocked?: (message: string) => void;
+  onUserDisconnected?: (message: string) => void;
   onError?: (error: string) => void;
 }
 
@@ -94,6 +98,17 @@ export function useChat(options: UseChatOptions = {}) {
         
         if (!response.ok) {
           console.error(`[v0] Poll ${pollCount}: Failed with status ${response.status}`);
+          
+          // 404 means user was deleted (disconnect happened)
+          if (response.status === 404) {
+            console.log("[v0] Poll: User not found (deleted), stopping polling");
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
+            setSession(null);
+            setIsConnected(false);
+          }
           return;
         }
 
@@ -154,6 +169,54 @@ export function useChat(options: UseChatOptions = {}) {
             case "user_left":
               console.log("[v0] User left event:", event.payload);
               options.onUserLeft?.(event.payload.reason, event.payload.userLeftId);
+              break;
+            case "partner_offline":
+              console.log("[v0] Partner offline:", event.payload);
+              setSession((prev) => {
+                if (!prev) return null;
+                return {
+                  ...prev,
+                  roomId: null,
+                  matchedUserId: null,
+                };
+              });
+              options.onPartnerOffline?.(event.payload.message);
+              break;
+            case "user_skipped":
+              console.log("[v0] User skipped:", event.payload);
+              setSession((prev) => {
+                if (!prev) return null;
+                return {
+                  ...prev,
+                  roomId: null,
+                  matchedUserId: null,
+                };
+              });
+              options.onUserSkipped?.(event.payload.reason || "Your chat partner left to find someone else");
+              break;
+            case "user_blocked":
+              console.log("[v0] User blocked:", event.payload);
+              setSession((prev) => {
+                if (!prev) return null;
+                return {
+                  ...prev,
+                  roomId: null,
+                  matchedUserId: null,
+                };
+              });
+              options.onUserBlocked?.(event.payload.reason || "You've been blocked by this user");
+              break;
+            case "user_disconnected":
+              console.log("[v0] User disconnected:", event.payload);
+              setSession((prev) => {
+                if (!prev) return null;
+                return {
+                  ...prev,
+                  roomId: null,
+                  matchedUserId: null,
+                };
+              });
+              options.onUserDisconnected?.(event.payload.message || "Your chat partner disconnected");
               break;
             default:
               console.log("[v0] Unknown event type:", event.type);
@@ -305,27 +368,44 @@ export function useChat(options: UseChatOptions = {}) {
   const disconnect = useCallback(async () => {
     if (!session?.userId) return;
 
-    await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "disconnect",
-        userId: session.userId,
-      }),
-    }).catch(() => {});
-
-    setSession(null);
-    setIsConnected(false);
-
+    console.log("[v0] Disconnect: Stopping polling first");
+    
+    // STOP POLLING IMMEDIATELY - this prevents 404 errors
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = null;
+      console.log("[v0] Disconnect: Polling stopped");
     }
 
+    // STOP HEARTBEAT
     if (heartbeatRef.current) {
       clearInterval(heartbeatRef.current);
       heartbeatRef.current = null;
+      console.log("[v0] Disconnect: Heartbeat stopped");
     }
+
+    // Wait a bit for polling to fully stop
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // NOW call backend disconnect (cleans up Redis)
+    console.log("[v0] Disconnect: Calling backend disconnect", session.userId);
+    try {
+      await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "disconnect",
+          userId: session.userId,
+        }),
+      });
+    } catch (error) {
+      console.error("[v0] Disconnect backend error:", error);
+    }
+
+    // FINALLY clear session (completes the disconnect)
+    setSession(null);
+    setIsConnected(false);
+    console.log("[v0] Disconnect: Session cleared");
   }, [session?.userId]);
 
   const getMessages = useCallback(async () => {
