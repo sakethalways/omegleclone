@@ -93,7 +93,7 @@ async function validateUserConnection(userId: string): Promise<boolean> {
     }
 
     const timeSinceHeartbeat = Date.now() - user.lastHeartbeat;
-    const isHealthy = timeSinceHeartbeat <= 30000; // 30 second timeout
+    const isHealthy = timeSinceHeartbeat <= 60000; // 60 second timeout (increased from 30s)
 
     if (!isHealthy) {
       console.log(
