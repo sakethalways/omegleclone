@@ -19,6 +19,7 @@ export function InterestSelector({
   const [userName, setUserName] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
 
   // Filter interests based on search (case-insensitive)
   const filteredInterests = searchInput.trim()
@@ -49,8 +50,36 @@ export function InterestSelector({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && sortedSuggestions.length > 0) {
-      handleAddInterest(sortedSuggestions[0]);
+    if (!showSuggestions || sortedSuggestions.length === 0) {
+      if (e.key === "Enter" && searchInput.trim()) {
+        e.preventDefault();
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setHighlightedIndex((prev) =>
+          prev < sortedSuggestions.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : -1));
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (highlightedIndex >= 0 && highlightedIndex < sortedSuggestions.length) {
+          handleAddInterest(sortedSuggestions[highlightedIndex]);
+          setHighlightedIndex(-1);
+        }
+        break;
+      case "Escape":
+        e.preventDefault();
+        setShowSuggestions(false);
+        setHighlightedIndex(-1);
+        break;
     }
   };
 
@@ -77,14 +106,9 @@ export function InterestSelector({
         <div className="relative p-4 sm:p-6 overflow-visible">
           {/* Header */}
           <div className="text-center mb-4 sm:mb-5">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <div className="p-1.5 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg">
-                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                Connect
-              </h1>
-            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
+              YouMingle
+            </h1>
             <p className="text-slate-300 text-xs sm:text-sm">
               Share interests, meet amazing people
             </p>
@@ -121,6 +145,7 @@ export function InterestSelector({
                 onChange={(e) => {
                   setSearchInput(e.target.value);
                   setShowSuggestions(true);
+                  setHighlightedIndex(-1);
                 }}
                 onFocus={() => setShowSuggestions(true)}
                 onKeyDown={handleKeyDown}
@@ -144,18 +169,23 @@ export function InterestSelector({
                 <div className="absolute top-full left-0 right-0 mt-1 bg-slate-700/95 backdrop-blur border border-slate-600/50 rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto w-full">
                   {sortedSuggestions.length > 0 ? (
                     <ul className="divide-y divide-slate-600/30">
-                      {sortedSuggestions.map((tag) => {
+                      {sortedSuggestions.map((tag, index) => {
                         const isSelected = selectedInterests.includes(tag);
+                        const isHighlighted = highlightedIndex === index;
                         return (
                           <li key={tag}>
                             <button
                               onClick={() => handleAddInterest(tag)}
                               className={`w-full text-left px-3 py-2 text-xs transition-all duration-200 ${
-                                isSelected
+                                isHighlighted
+                                  ? "bg-blue-500/60 text-blue-100"
+                                  : isSelected
                                   ? "bg-blue-600/40 text-blue-200 cursor-not-allowed opacity-70"
                                   : "text-slate-200 hover:bg-slate-600/50 active:bg-slate-500/50"
                               }`}
                               disabled={isSelected}
+                              onMouseEnter={() => setHighlightedIndex(index)}
+                              onMouseLeave={() => setHighlightedIndex(-1)}
                             >
                               <div className="flex items-center gap-2">
                                 {isSelected ? (

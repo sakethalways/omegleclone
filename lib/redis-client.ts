@@ -336,8 +336,8 @@ export const RedisService = {
           `events:${userId}`,
           JSON.stringify(event)
         );
-        // Expire events after 30 seconds (polling interval)
-        await redisClient.expire(`events:${userId}`, 30);
+        // Expire events after 60 seconds (increased from 30s to ensure delivery)
+        await redisClient.expire(`events:${userId}`, 60);
       } catch (error) {
         console.error("[Redis] pushEvent failed:", error);
         if (!fallbackStorage.userEvents.has(userId)) {

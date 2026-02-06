@@ -10,6 +10,8 @@ interface WaitingQueueProps {
   totalWaiting: number;
   interests: string[];
   onCancel: () => void;
+  isAutoSearching?: boolean;
+  noUsersOnline?: boolean;
 }
 
 export function WaitingQueue({
@@ -17,6 +19,8 @@ export function WaitingQueue({
   totalWaiting,
   interests,
   onCancel,
+  isAutoSearching = false,
+  noUsersOnline = false,
 }: WaitingQueueProps) {
   const [animatedPosition, setAnimatedPosition] = useState(position);
   const [dots, setDots] = useState(".");
@@ -45,46 +49,52 @@ export function WaitingQueue({
         
         <div className="relative p-6 sm:p-8 text-center">
           {/* Animated spinner */}
-          <div className="mb-6 flex justify-center">
-            <div className="relative w-20 h-20">
-              {/* Outer ring */}
-              <div className="absolute inset-0 rounded-full border-2 border-slate-700/50"></div>
-              {/* Animated ring */}
-              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-blue-500 border-r-purple-500 animate-spin"></div>
-              {/* Pulsing center */}
-              <div className="absolute inset-2 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 animate-pulse"></div>
-              {/* Center icon */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Clock className="w-8 h-8 text-blue-400" />
+          {!noUsersOnline && (
+            <div className="mb-6 flex justify-center">
+              <div className="relative w-20 h-20">
+                {/* Outer ring */}
+                <div className="absolute inset-0 rounded-full border-2 border-slate-700/50"></div>
+                {/* Animated ring */}
+                <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-blue-500 border-r-purple-500 animate-spin"></div>
+                {/* Pulsing center */}
+                <div className="absolute inset-2 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 animate-pulse"></div>
+                {/* Center icon */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Clock className="w-8 h-8 text-blue-400" />
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Title */}
           <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-            Finding Match
+            {noUsersOnline ? "No Users Online" : isAutoSearching ? "Finding New Match" : "Finding Match"}
           </h2>
           <p className="text-slate-400 text-sm mb-6">
-            Connecting you{dots}
+            {noUsersOnline 
+              ? "Come back later to meet someone new" 
+              : isAutoSearching ? "Searching for your next partner" : `Connecting you${dots}`}
           </p>
 
           {/* Queue Position */}
-          <div className="mb-6 p-5 bg-gradient-to-br from-slate-700/50 to-slate-800/50 rounded-xl border border-slate-700/50 hover:border-slate-600/50 transition-colors">
-            <p className="text-slate-400 text-xs uppercase tracking-wider font-semibold mb-2">Your Position</p>
-            <div className="flex items-baseline justify-center gap-1.5">
-              <span className="text-4xl sm:text-5xl font-bold text-transparent bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text">
-                {animatedPosition}
-              </span>
-              <span className="text-slate-400 text-sm">of {totalWaiting}</span>
+          {!isAutoSearching && (
+            <div className="mb-6 p-5 bg-gradient-to-br from-slate-700/50 to-slate-800/50 rounded-xl border border-slate-700/50 hover:border-slate-600/50 transition-colors">
+              <p className="text-slate-400 text-xs uppercase tracking-wider font-semibold mb-2">Your Position</p>
+              <div className="flex items-baseline justify-center gap-1.5">
+                <span className="text-4xl sm:text-5xl font-bold text-transparent bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text">
+                  {animatedPosition}
+                </span>
+                <span className="text-slate-400 text-sm">of {totalWaiting}</span>
+              </div>
+              {/* Progress bar */}
+              <div className="mt-4 h-1.5 bg-slate-700/50 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500 ease-out"
+                  style={{width: `${(animatedPosition / Math.max(totalWaiting, 1)) * 100}%`}}
+                ></div>
+              </div>
             </div>
-            {/* Progress bar */}
-            <div className="mt-4 h-1.5 bg-slate-700/50 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500 ease-out"
-                style={{width: `${(animatedPosition / Math.max(totalWaiting, 1)) * 100}%`}}
-              ></div>
-            </div>
-          </div>
+          )}
 
           {/* Interests */}
           <div className="mb-6">
@@ -103,14 +113,16 @@ export function WaitingQueue({
           </div>
 
           <p className="text-slate-400 text-xs mb-6">
-            We're finding someone who shares your interests
+            {isAutoSearching 
+              ? "Just a moment while we find your next match..." 
+              : "We're finding someone who shares your interests"}
           </p>
 
           <button
             onClick={onCancel}
             className="w-full px-4 py-2.5 bg-slate-700/50 hover:bg-slate-700 text-slate-200 font-medium rounded-lg transition-all duration-200 text-sm border border-slate-600/50 active:scale-95 transform"
           >
-            Cancel
+            {noUsersOnline ? "Go Back" : "Cancel"}
           </button>
         </div>
       </Card>

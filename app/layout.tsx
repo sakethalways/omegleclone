@@ -8,7 +8,7 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'Omegle - Connect with Strangers',
+  title: 'YouMingle - Connect with Strangers',
   description: 'A real-time anonymous chat platform where you can connect with random strangers based on shared interests. Match instantly with people who share your passions.',
   generator: 'v0.app',
   icons: {

@@ -26,6 +26,7 @@ interface ChatWindowProps {
   onBlock: (userId: string) => void;
   onDisconnect: () => void;
   isRemoteTyping: boolean;
+  isLoading?: boolean;
 }
 
 export function ChatWindow({
@@ -41,6 +42,7 @@ export function ChatWindow({
   onBlock,
   onDisconnect,
   isRemoteTyping,
+  isLoading = false,
 }: ChatWindowProps) {
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -114,76 +116,79 @@ export function ChatWindow({
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-purple-500/5 rounded-full blur-3xl"></div>
       </div>
 
-      <div className="relative max-w-2xl mx-auto h-[calc(100vh-24px)] sm:h-[calc(100vh-32px)] flex flex-col">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-slate-800/90 to-slate-800/70 backdrop-blur-md border border-slate-700/50 rounded-2xl p-3 sm:p-4 mb-3 shadow-lg">
-          <div className="flex items-center justify-between gap-2 sm:gap-4">
-            {/* User Info */}
-            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+      <div className="relative max-w-3xl mx-auto h-[calc(100vh-24px)] sm:h-[calc(100vh-32px)] flex flex-col">
+        {/* Header - Compact */}
+        <div className="bg-gradient-to-r from-slate-800/90 to-slate-800/70 backdrop-blur-md border border-slate-700/50 rounded-xl p-2.5 sm:p-3 mb-2 shadow-lg">
+          <div className="flex items-center justify-between gap-2">
+            {/* User Info - Compact */}
+            <div className="flex items-center gap-2 flex-1 min-w-0">
               <div
-                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-white font-bold text-sm sm:text-base flex-shrink-0 shadow-lg"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0 shadow-lg"
                 style={{ backgroundColor: matchedUser.color }}
               >
                 {matchedUser.name[0].toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="font-semibold text-white text-sm sm:text-base truncate">{matchedUser.name}</h3>
-                <div className="flex gap-1 flex-wrap">
-                  {commonInterests.slice(0, 2).map((interest) => (
+                <h3 className="font-semibold text-white text-xs sm:text-sm truncate">{matchedUser.name}</h3>
+                <div className="flex gap-0.5 flex-wrap">
+                  {commonInterests.slice(0, 1).map((interest) => (
                     <span
                       key={interest}
-                      className="text-xs px-2 py-0.5 bg-blue-500/20 text-blue-300 rounded-full font-medium border border-blue-500/30"
+                      className="text-xs px-1.5 py-0.5 bg-blue-500/20 text-blue-300 rounded-full font-medium border border-blue-500/30 truncate"
                     >
                       {interest}
                     </span>
                   ))}
-                  {commonInterests.length > 2 && (
-                    <span className="text-xs text-slate-400">+{commonInterests.length - 2}</span>
+                  {commonInterests.length > 1 && (
+                    <span className="text-xs text-slate-400 px-1">+{commonInterests.length - 1}</span>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-1 sm:gap-2 flex-shrink-0">
-              <button
+            {/* Action Buttons - Compact */}
+            <div className="flex gap-0.5 sm:gap-1 flex-shrink-0">
+            <button
                 onClick={() => onBlock(matchedUser.id)}
-                className="p-1.5 sm:p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all duration-200 hover:scale-110 active:scale-95 group"
+                disabled={isLoading}
+                className="p-1 sm:p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-all duration-200 hover:scale-110 active:scale-95 group relative"
                 title="Block"
               >
-                <Ban className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">Block</span>
+                <Ban className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">Block</span>
               </button>
               <button
                 onClick={onSkip}
-                className="p-1.5 sm:p-2 text-slate-400 hover:text-yellow-400 hover:bg-yellow-500/10 rounded-lg transition-all duration-200 hover:scale-110 active:scale-95 group"
+                disabled={isLoading}
+                className="p-1 sm:p-1.5 text-slate-400 hover:text-yellow-400 hover:bg-yellow-500/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-all duration-200 hover:scale-110 active:scale-95 group relative"
                 title="Skip"
               >
-                <SkipForward className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">Skip</span>
+                <SkipForward className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">Skip</span>
               </button>
               <button
                 onClick={onDisconnect}
-                className="p-1.5 sm:p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all duration-200 hover:scale-110 active:scale-95 group"
+                disabled={isLoading}
+                className="p-1 sm:p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-all duration-200 hover:scale-110 active:scale-95 group relative"
                 title="Exit"
               >
-                <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">Exit</span>
+                <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">Exit</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* Messages Area */}
-        <div className="flex-1 bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-2xl overflow-y-auto p-3 sm:p-4 flex flex-col gap-3 mb-3 scroll-smooth">
+        {/* Messages Area - Compact */}
+        <div className="flex-1 bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-y-auto p-2.5 sm:p-3 flex flex-col gap-2 mb-2 scroll-smooth">
           {messages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <MessageCircle className="w-6 h-6 text-blue-400" />
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <MessageCircle className="w-5 h-5 text-blue-400" />
                 </div>
-                <p className="text-slate-300 font-medium text-sm">Start a conversation</p>
-                <p className="text-slate-400 text-xs mt-1">Say hello to break the ice!</p>
+                <p className="text-slate-300 font-medium text-xs sm:text-sm">Start a conversation</p>
+                <p className="text-slate-400 text-xs mt-0.5">Say hello!</p>
               </div>
             </div>
           ) : (
@@ -197,21 +202,21 @@ export function ChatWindow({
                 >
                   {!isOwnMessage && (
                     <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
                       style={{ backgroundColor: matchedUser.color }}
                     >
                       {matchedUser.name[0].toUpperCase()}
                     </div>
                   )}
                   <div
-                    className={`max-w-xs lg:max-w-sm px-3 sm:px-4 py-2 sm:py-3 rounded-2xl text-sm sm:text-base leading-relaxed break-words transition-all duration-200 ${
+                    className={`max-w-xs lg:max-w-md px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm leading-relaxed break-words transition-all duration-200 ${
                       isOwnMessage
                         ? "bg-gradient-to-br from-blue-600 to-blue-500 text-white rounded-br-none shadow-lg hover:shadow-blue-500/50"
                         : "bg-slate-700/60 text-slate-100 rounded-bl-none shadow-md hover:bg-slate-700/80"
                     }`}
                   >
                     <p className="break-words">{msg.content}</p>
-                    <p className={`text-xs mt-1.5 font-medium opacity-60`}>
+                    <p className={`text-xs mt-1 font-medium opacity-60`}>
                       {new Date(msg.timestamp).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -231,10 +236,10 @@ export function ChatWindow({
               >
                 {matchedUser.name[0].toUpperCase()}
               </div>
-              <div className="bg-slate-700/60 rounded-2xl rounded-bl-none px-4 py-3 flex gap-1.5">
-                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
-                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '100ms'}}></div>
-                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '200ms'}}></div>
+              <div className="bg-slate-700/60 rounded-lg rounded-bl-none px-2.5 py-1.5 sm:px-3 sm:py-2 flex gap-1">
+                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '100ms'}}></div>
+                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '200ms'}}></div>
               </div>
             </div>
           )}
@@ -242,22 +247,24 @@ export function ChatWindow({
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Area */}
-        <div className="bg-gradient-to-r from-slate-800/90 to-slate-800/70 backdrop-blur-md border border-slate-700/50 rounded-2xl p-3 sm:p-4 shadow-lg">
-          <form onSubmit={handleSendMessage} className="flex gap-2">
+        {/* Input Area - Compact */}
+        <div className="bg-gradient-to-r from-slate-800/90 to-slate-800/70 backdrop-blur-md border border-slate-700/50 rounded-xl p-2 sm:p-3 shadow-lg">
+          <form onSubmit={handleSendMessage} className="flex gap-1.5 sm:gap-2">
             <input
               type="text"
               value={inputValue}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Your message..."
-              className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-400 text-sm sm:text-base focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all duration-200 hover:border-slate-500"
+              disabled={isLoading}
+              placeholder="Say something..."
+              className="flex-1 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-slate-700/50 border border-slate-600/50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white placeholder-slate-400 text-xs sm:text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all duration-200 hover:border-slate-500"
             />
             <button
               type="submit"
-              className="px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-semibold rounded-xl transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/30 active:scale-95 transform flex items-center justify-center gap-1.5 sm:gap-2"
+              disabled={isLoading}
+              className="px-2.5 sm:px-3 py-1.5 sm:py-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 disabled:from-slate-600 disabled:to-slate-500 text-white font-semibold rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transform flex items-center justify-center gap-1"
             >
-              <Send className="w-4 h-4 sm:w-5 sm:h-5" />
+              <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Send</span>
             </button>
           </form>
