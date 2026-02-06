@@ -16,7 +16,7 @@ import {
 import { matchingEngine } from "@/lib/matching-algorithm";
 import { RedisService, initializeRedis } from "@/lib/redis-client";
 
-const QUEUE_CHECK_INTERVAL = 2000;
+const QUEUE_CHECK_INTERVAL = 500; // Reduced from 2000ms to match frontend polling
 
 // Initialize Redis on first import
 let redisInitialized = false;

@@ -170,7 +170,7 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
           userId,
         }),
       }).catch((error) => console.error("[v0] Heartbeat failed:", error));
-    }, 30000);
+    }, 15000); // Reduced from 30s to 15s for more frequent heartbeat checks
   }, []);
 
   const sendMessage = useCallback(
