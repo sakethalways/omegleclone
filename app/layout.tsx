@@ -12,21 +12,8 @@ export const metadata: Metadata = {
   description: 'A real-time anonymous chat platform where you can connect with random strangers based on shared interests. Match instantly with people who share your passions.',
   generator: 'v0.app',
   icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
+    icon: '/1770376155517.png',
+    apple: '/1770376155517.png',
   },
 }
 

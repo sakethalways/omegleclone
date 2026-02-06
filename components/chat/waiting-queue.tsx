@@ -37,15 +37,15 @@ export function WaitingQueue({
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-white flex items-center justify-center p-4 relative overflow-hidden">
       {/* Animated background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-0 left-0 w-40 h-40 bg-purple-500/5 rounded-full blur-2xl animate-pulse" style={{animationDelay: '0.5s'}}></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-orange-200/30 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-0 left-0 w-40 h-40 bg-yellow-200/30 rounded-full blur-2xl animate-pulse" style={{animationDelay: '0.5s'}}></div>
       </div>
 
-      <Card className="relative w-full max-w-sm bg-slate-800/80 backdrop-blur-xl border border-slate-700/50 shadow-2xl rounded-2xl overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-transparent to-purple-500/10 pointer-events-none"></div>
+      <Card className="relative w-full max-w-sm bg-white backdrop-blur-xl border border-orange-200 shadow-xl rounded-2xl overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-orange-100/20 via-transparent to-yellow-100/20 pointer-events-none"></div>
         
         <div className="relative p-6 sm:p-8 text-center">
           {/* Animated spinner */}
@@ -53,24 +53,24 @@ export function WaitingQueue({
             <div className="mb-6 flex justify-center">
               <div className="relative w-20 h-20">
                 {/* Outer ring */}
-                <div className="absolute inset-0 rounded-full border-2 border-slate-700/50"></div>
+                <div className="absolute inset-0 rounded-full border-2 border-orange-200"></div>
                 {/* Animated ring */}
-                <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-blue-500 border-r-purple-500 animate-spin"></div>
+                <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-orange-500 border-r-yellow-500 animate-spin"></div>
                 {/* Pulsing center */}
-                <div className="absolute inset-2 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 animate-pulse"></div>
+                <div className="absolute inset-2 rounded-full bg-gradient-to-br from-orange-300/20 to-yellow-300/20 animate-pulse"></div>
                 {/* Center icon */}
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Clock className="w-8 h-8 text-blue-400" />
+                  <Clock className="w-8 h-8 text-orange-500" />
                 </div>
               </div>
             </div>
           )}
 
           {/* Title */}
-          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
             {noUsersOnline ? "No Users Online" : isAutoSearching ? "Finding New Match" : "Finding Match"}
           </h2>
-          <p className="text-slate-400 text-sm mb-6">
+          <p className="text-gray-600 text-sm mb-6">
             {noUsersOnline 
               ? "Come back later to meet someone new" 
               : isAutoSearching ? "Searching for your next partner" : `Connecting you${dots}`}
@@ -78,18 +78,18 @@ export function WaitingQueue({
 
           {/* Queue Position */}
           {!isAutoSearching && (
-            <div className="mb-6 p-5 bg-gradient-to-br from-slate-700/50 to-slate-800/50 rounded-xl border border-slate-700/50 hover:border-slate-600/50 transition-colors">
-              <p className="text-slate-400 text-xs uppercase tracking-wider font-semibold mb-2">Your Position</p>
+            <div className="mb-6 p-5 bg-gradient-to-br from-orange-50 to-yellow-50 rounded-xl border border-orange-200 hover:border-orange-300 transition-colors">
+              <p className="text-gray-600 text-xs uppercase tracking-wider font-semibold mb-2">Your Position</p>
               <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-4xl sm:text-5xl font-bold text-transparent bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text">
+                <span className="text-4xl sm:text-5xl font-bold text-transparent bg-gradient-to-r from-orange-500 to-yellow-500 bg-clip-text">
                   {animatedPosition}
                 </span>
-                <span className="text-slate-400 text-sm">of {totalWaiting}</span>
+                <span className="text-gray-600 text-sm">of {totalWaiting}</span>
               </div>
               {/* Progress bar */}
-              <div className="mt-4 h-1.5 bg-slate-700/50 rounded-full overflow-hidden">
+              <div className="mt-4 h-1.5 bg-orange-100 rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500 ease-out"
+                  className="h-full bg-gradient-to-r from-orange-500 to-yellow-500 transition-all duration-500 ease-out"
                   style={{width: `${(animatedPosition / Math.max(totalWaiting, 1)) * 100}%`}}
                 ></div>
               </div>
@@ -98,12 +98,12 @@ export function WaitingQueue({
 
           {/* Interests */}
           <div className="mb-6">
-            <p className="text-slate-400 text-xs uppercase tracking-wider font-semibold mb-3">Interests</p>
+            <p className="text-gray-600 text-xs uppercase tracking-wider font-semibold mb-3">Interests</p>
             <div className="flex flex-wrap gap-2 justify-center">
               {interests.map((interest, idx) => (
                 <span
                   key={interest}
-                  className="px-3 py-1.5 bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-300 rounded-full text-xs font-semibold border border-blue-500/30 hover:border-blue-500/60 transition-colors animate-pulse"
+                  className="px-3 py-1.5 bg-gradient-to-r from-orange-200 to-yellow-200 text-orange-800 rounded-full text-xs font-semibold border border-orange-300 hover:border-orange-400 transition-colors animate-pulse"
                   style={{animationDelay: `${idx * 100}ms`}}
                 >
                   {interest}
@@ -112,15 +112,15 @@ export function WaitingQueue({
             </div>
           </div>
 
-          <p className="text-slate-400 text-xs mb-6">
+          <p className="text-gray-500 text-xs mb-6">
             {isAutoSearching 
               ? "Just a moment while we find your next match..." 
-              : "We're finding someone who shares your interests"}
+              : "Chat will start when a match is found"}
           </p>
 
           <button
             onClick={onCancel}
-            className="w-full px-4 py-2.5 bg-slate-700/50 hover:bg-slate-700 text-slate-200 font-medium rounded-lg transition-all duration-200 text-sm border border-slate-600/50 active:scale-95 transform"
+            className="w-full px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg transition-all duration-200 text-sm border border-orange-600 active:scale-95 transform"
           >
             {noUsersOnline ? "Go Back" : "Cancel"}
           </button>

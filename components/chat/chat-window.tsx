@@ -109,16 +109,16 @@ export function ChatWindow({
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-3 sm:p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-white p-3 sm:p-4 relative overflow-hidden">
       {/* Animated background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-purple-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute top-0 right-0 w-80 h-80 bg-orange-200/30 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-yellow-200/30 rounded-full blur-3xl"></div>
       </div>
 
       <div className="relative max-w-3xl mx-auto h-[calc(100vh-24px)] sm:h-[calc(100vh-32px)] flex flex-col">
         {/* Header - Compact */}
-        <div className="bg-gradient-to-r from-slate-800/90 to-slate-800/70 backdrop-blur-md border border-slate-700/50 rounded-xl p-2.5 sm:p-3 mb-2 shadow-lg">
+        <div className="bg-gradient-to-r from-white to-orange-50 backdrop-blur-md border border-orange-200 rounded-xl p-2.5 sm:p-3 mb-2 shadow-lg">
           <div className="flex items-center justify-between gap-2">
             {/* User Info - Compact */}
             <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -129,18 +129,18 @@ export function ChatWindow({
                 {matchedUser.name[0].toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="font-semibold text-white text-xs sm:text-sm truncate">{matchedUser.name}</h3>
+                <h3 className="font-semibold text-gray-800 text-xs sm:text-sm truncate">{matchedUser.name}</h3>
                 <div className="flex gap-0.5 flex-wrap">
                   {commonInterests.slice(0, 1).map((interest) => (
                     <span
                       key={interest}
-                      className="text-xs px-1.5 py-0.5 bg-blue-500/20 text-blue-300 rounded-full font-medium border border-blue-500/30 truncate"
+                      className="text-xs px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded-full font-medium border border-orange-300 truncate"
                     >
                       {interest}
                     </span>
                   ))}
                   {commonInterests.length > 1 && (
-                    <span className="text-xs text-slate-400 px-1">+{commonInterests.length - 1}</span>
+                    <span className="text-xs text-gray-600 px-1">+{commonInterests.length - 1}</span>
                   )}
                 </div>
               </div>
@@ -151,25 +151,25 @@ export function ChatWindow({
             <button
                 onClick={() => onBlock(matchedUser.id)}
                 disabled={isLoading}
-                className="p-1 sm:p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-all duration-200 hover:scale-110 active:scale-95 group relative"
+                className="p-1 sm:p-1.5 text-orange-600 hover:text-red-600 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-all duration-200 hover:scale-110 active:scale-95 group relative"
                 title="Block"
               >
                 <Ban className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">Block</span>
+                <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">Block</span>
               </button>
               <button
                 onClick={onSkip}
                 disabled={isLoading}
-                className="p-1 sm:p-1.5 text-slate-400 hover:text-yellow-400 hover:bg-yellow-500/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-all duration-200 hover:scale-110 active:scale-95 group relative"
+                className="p-1 sm:p-1.5 text-orange-600 hover:text-yellow-700 hover:bg-yellow-100 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-all duration-200 hover:scale-110 active:scale-95"
                 title="Skip"
               >
                 <SkipForward className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">Skip</span>
+                <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">Skip</span>
               </button>
               <button
                 onClick={onDisconnect}
                 disabled={isLoading}
-                className="p-1 sm:p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-all duration-200 hover:scale-110 active:scale-95 group relative"
+                className="p-1 sm:p-1.5 text-orange-600 hover:text-orange-700 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-all duration-200 hover:scale-110 active:scale-95 group relative"
                 title="Exit"
               >
                 <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -180,15 +180,15 @@ export function ChatWindow({
         </div>
 
         {/* Messages Area - Compact */}
-        <div className="flex-1 bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-y-auto p-2.5 sm:p-3 flex flex-col gap-2 mb-2 scroll-smooth">
+        <div className="flex-1 bg-white/70 backdrop-blur-sm border border-orange-200 rounded-xl overflow-y-auto p-2.5 sm:p-3 flex flex-col gap-2 mb-2 scroll-smooth">
           {messages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                  <MessageCircle className="w-5 h-5 text-blue-400" />
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-500/20 to-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <MessageCircle className="w-5 h-5 text-orange-600" />
                 </div>
-                <p className="text-slate-300 font-medium text-xs sm:text-sm">Start a conversation</p>
-                <p className="text-slate-400 text-xs mt-0.5">Say hello!</p>
+                <p className="text-gray-700 font-medium text-xs sm:text-sm">Start a conversation</p>
+                <p className="text-gray-500 text-xs mt-0.5">Say hello!</p>
               </div>
             </div>
           ) : (
@@ -211,8 +211,8 @@ export function ChatWindow({
                   <div
                     className={`max-w-xs lg:max-w-md px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm leading-relaxed break-words transition-all duration-200 ${
                       isOwnMessage
-                        ? "bg-gradient-to-br from-blue-600 to-blue-500 text-white rounded-br-none shadow-lg hover:shadow-blue-500/50"
-                        : "bg-slate-700/60 text-slate-100 rounded-bl-none shadow-md hover:bg-slate-700/80"
+                        ? "bg-gradient-to-br from-orange-500 to-yellow-500 text-white rounded-br-none shadow-lg hover:shadow-orange-500/50"
+                        : "bg-gray-100 text-gray-800 rounded-bl-none shadow-md hover:bg-gray-200"
                     }`}
                   >
                     <p className="break-words">{msg.content}</p>
@@ -236,10 +236,10 @@ export function ChatWindow({
               >
                 {matchedUser.name[0].toUpperCase()}
               </div>
-              <div className="bg-slate-700/60 rounded-lg rounded-bl-none px-2.5 py-1.5 sm:px-3 sm:py-2 flex gap-1">
-                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
-                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '100ms'}}></div>
-                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '200ms'}}></div>
+              <div className="bg-gray-100 rounded-lg rounded-bl-none px-2.5 py-1.5 sm:px-3 sm:py-2 flex gap-1">
+                <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '100ms'}}></div>
+                <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '200ms'}}></div>
               </div>
             </div>
           )}
@@ -248,7 +248,7 @@ export function ChatWindow({
         </div>
 
         {/* Input Area - Compact */}
-        <div className="bg-gradient-to-r from-slate-800/90 to-slate-800/70 backdrop-blur-md border border-slate-700/50 rounded-xl p-2 sm:p-3 shadow-lg">
+        <div className="bg-gradient-to-r from-white to-orange-50 backdrop-blur-md border border-orange-200 rounded-xl p-2 sm:p-3 shadow-lg">
           <form onSubmit={handleSendMessage} className="flex gap-1.5 sm:gap-2">
             <input
               type="text"
@@ -257,12 +257,12 @@ export function ChatWindow({
               onKeyDown={handleKeyDown}
               disabled={isLoading}
               placeholder="Say something..."
-              className="flex-1 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-slate-700/50 border border-slate-600/50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white placeholder-slate-400 text-xs sm:text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all duration-200 hover:border-slate-500"
+              className="flex-1 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white border border-orange-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-gray-800 placeholder-gray-400 text-xs sm:text-sm focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 transition-all duration-200 hover:border-orange-300"
             />
             <button
               type="submit"
               disabled={isLoading}
-              className="px-2.5 sm:px-3 py-1.5 sm:py-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 disabled:from-slate-600 disabled:to-slate-500 text-white font-semibold rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transform flex items-center justify-center gap-1"
+              className="px-2.5 sm:px-3 py-1.5 sm:py-2 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-400 disabled:to-gray-300 text-white font-semibold rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-orange-500/30 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transform flex items-center justify-center gap-1"
             >
               <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Send</span>

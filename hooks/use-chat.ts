@@ -228,7 +228,7 @@ export function useChat(options: UseChatOptions = {}) {
     };
 
     poll();
-    pollIntervalRef.current = setInterval(poll, 500);
+    pollIntervalRef.current = setInterval(poll, 200); // Poll every 200ms (5x per second) for faster response
   }, [options]);
 
   const startHeartbeat = useCallback((userId: string) => {
@@ -245,7 +245,7 @@ export function useChat(options: UseChatOptions = {}) {
           userId,
         }),
       }).catch(() => {});
-    }, 30000);
+    }, 15000); // Heartbeat every 15 seconds (was 30s)
   }, []);
 
   const sendMessage = useCallback(

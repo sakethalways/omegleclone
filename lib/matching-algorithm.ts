@@ -1,4 +1,5 @@
 import type { ChatUser } from "./chat-types";
+import { RedisService } from "./redis-client";
 
 export interface MatchResult {
   user1: ChatUser;
@@ -8,13 +9,14 @@ export interface MatchResult {
 }
 
 export class MatchingEngine {
-  private recentMatches: Map<string, Set<string>> = new Map();
+  // Note: Recent matches are now tracked in Redis, not in-memory
+  // This allows server restarts without losing match history
 
   /**
    * Calculate similarity score between two users based on common interests
    * Higher score = better match
    */
-  private calculateMatchScore(user1: ChatUser, user2: ChatUser): number {
+  private async calculateMatchScore(user1: ChatUser, user2: ChatUser): Promise<number> {
     const interests1 = new Set(user1.interests);
     const interests2 = new Set(user2.interests);
 
@@ -22,9 +24,8 @@ export class MatchingEngine {
       interests2.has(i)
     ).length;
 
-    // Penalty if they've recently matched
-    const recentlyMatched =
-      this.recentMatches.get(user1.id)?.has(user2.id) ?? false;
+    // Check Redis for recently matched status
+    const recentlyMatched = await RedisService.haveRecentlyMatched(user1.id, user2.id);
 
     if (commonInterests === 0) return -1;
 
@@ -47,10 +48,10 @@ export class MatchingEngine {
   /**
    * Find best match for a user from available queue
    */
-  public findMatch(
+  public async findMatch(
     targetUser: ChatUser,
     availableUsers: ChatUser[]
-  ): ChatUser | null {
+  ): Promise<ChatUser | null> {
     if (availableUsers.length === 0) return null;
 
     let bestMatch: ChatUser | null = null;
@@ -61,7 +62,7 @@ export class MatchingEngine {
       if (targetUser.blockedUsers.includes(candidate.id)) continue;
       if (candidate.blockedUsers.includes(targetUser.id)) continue;
 
-      const score = this.calculateMatchScore(targetUser, candidate);
+      const score = await this.calculateMatchScore(targetUser, candidate);
 
       if (score > bestScore) {
         bestScore = score;
@@ -75,8 +76,9 @@ export class MatchingEngine {
   /**
    * Find matches for multiple users efficiently
    * Returns pairs of matched users
+   * WARNING: O(N²) algorithm - optimize for 1000+ users in future
    */
-  public findMatches(users: ChatUser[]): Array<[ChatUser, ChatUser]> {
+  public async findMatches(users: ChatUser[]): Promise<Array<[ChatUser, ChatUser]>> {
     const pairs: Array<[ChatUser, ChatUser]> = [];
     const remaining = new Set(users);
 
@@ -96,7 +98,7 @@ export class MatchingEngine {
             continue;
           }
 
-          const score = this.calculateMatchScore(user1, user2);
+          const score = await this.calculateMatchScore(user1, user2);
 
           if (score > bestScore) {
             bestScore = score;
@@ -110,8 +112,8 @@ export class MatchingEngine {
         remaining.delete(bestPair[0]);
         remaining.delete(bestPair[1]);
 
-        // Track recent match
-        this.recordMatch(bestPair[0].id, bestPair[1].id);
+        // Track recent match in Redis (server-agnostic, survives restarts)
+        await RedisService.recordMatch(bestPair[0].id, bestPair[1].id);
       } else {
         break;
       }
@@ -121,46 +123,11 @@ export class MatchingEngine {
   }
 
   /**
-   * Record that two users have been matched (for preventing re-matches)
-   */
-  private recordMatch(userId1: string, userId2: string): void {
-    if (!this.recentMatches.has(userId1)) {
-      this.recentMatches.set(userId1, new Set());
-    }
-    if (!this.recentMatches.has(userId2)) {
-      this.recentMatches.set(userId2, new Set());
-    }
-
-    this.recentMatches.get(userId1)!.add(userId2);
-    this.recentMatches.get(userId2)!.add(userId1);
-
-    // Clean up old matches after 1 hour to allow re-matching
-    setTimeout(() => {
-      this.recentMatches.get(userId1)?.delete(userId2);
-      this.recentMatches.get(userId2)?.delete(userId1);
-    }, 60 * 60 * 1000);
-  }
-
-  /**
    * Get common interests between two users
    */
   public getCommonInterests(user1: ChatUser, user2: ChatUser): string[] {
     const interests1 = new Set(user1.interests);
     return user2.interests.filter((i) => interests1.has(i));
-  }
-
-  /**
-   * Clear match history (for testing or when resetting)
-   */
-  public clearHistory(): void {
-    this.recentMatches.clear();
-  }
-
-  /**
-   * Check if two users have been recently matched
-   */
-  public haveBeenMatched(userId1: string, userId2: string): boolean {
-    return this.recentMatches.get(userId1)?.has(userId2) ?? false;
   }
 }
 

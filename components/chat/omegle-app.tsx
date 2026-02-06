@@ -92,13 +92,11 @@ export function OmegleApp() {
       setMessages([]);
       setMatchedUser(null);
       setRoomId(null);
-      setAppState("waiting"); // Switch to waiting state immediately
-      setIsAutoSearching(true); // Show "Finding new match" UI
       
       // Provide user-friendly notification
       let notificationMsg = "";
       if (reason === "skip") {
-        notificationMsg = "👋 User skipped the chat - Finding new match...";
+        notificationMsg = "👋 User skipped the chat - Looking for new match...";
       } else if (reason === "disconnect") {
         notificationMsg = "🔌 User disconnected - Finding new match...";
       } else if (reason === "block") {
@@ -107,29 +105,40 @@ export function OmegleApp() {
         notificationMsg = `Chat ended (${reason}) - Finding new match...`;
       }
       
+      setAppState("waiting"); // Switch to waiting state immediately
       setError(notificationMsg);
       
-      // Auto-rejoin queue immediately (don't wait for response)
-      console.log("[v0] Auto-rejoining queue after user left");
-      if (session?.interests) {
-        joinQueue(session.userName, session.interests)
-          .then(() => {
-            console.log("[v0] Auto-rejoin successful");
-            // Clear auto-searching state after 2 seconds or when match found
-            setTimeout(() => {
+      // If backend skipped them, they'll already be re-queued after 3 seconds
+      // We show "waiting" state and wait for match_found event
+      // Only auto-rejoin if reason is disconnect or block (they initiated the disconnect)
+      if (reason !== "skip") {
+        setIsAutoSearching(true);
+        if (session?.interests) {
+          joinQueue(session.userName, session.interests)
+            .then(() => {
+              console.log("[v0] Auto-rejoin successful");
+              setTimeout(() => {
+                setIsAutoSearching(false);
+                setError(null);
+              }, 2000);
+            })
+            .catch((err) => {
+              console.error("[v0] Auto-rejoin failed:", err);
+              setError("Could not find new match - Returning to home");
               setIsAutoSearching(false);
-              setError(null);
-            }, 2000);
-          })
-          .catch((err) => {
-            console.error("[v0] Auto-rejoin failed:", err);
-            setError("Could not find new match - Returning to home");
-            setIsAutoSearching(false);
-            setTimeout(() => {
-              setAppState("interests");
-              setError(null);
-            }, 2000);
-          });
+              setTimeout(() => {
+                setAppState("interests");
+                setError(null);
+              }, 2000);
+            });
+        }
+      } else {
+        // For skip, just show waiting state and let backend re-queue after 3s
+        // Set a timeout to dismiss the message and show queue interface
+        setTimeout(() => {
+          setError(null);
+          setIsAutoSearching(true);
+        }, 2000);
       }
     },
 
@@ -323,26 +332,26 @@ export function OmegleApp() {
   // Loading overlay
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-white flex items-center justify-center p-4 relative overflow-hidden">
         {/* Animated background */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute top-0 left-0 w-40 h-40 bg-purple-500/5 rounded-full blur-2xl animate-pulse" style={{animationDelay: '0.5s'}}></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute top-0 left-0 w-40 h-40 bg-yellow-500/5 rounded-full blur-2xl animate-pulse" style={{animationDelay: '0.5s'}}></div>
         </div>
 
         <div className="relative text-center">
           <div className="mb-6 flex justify-center">
             <div className="relative w-20 h-20">
               {/* Outer ring */}
-              <div className="absolute inset-0 rounded-full border-2 border-slate-700/50"></div>
+              <div className="absolute inset-0 rounded-full border-2 border-orange-200/50"></div>
               {/* Animated ring */}
-              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-blue-500 border-r-purple-500 animate-spin"></div>
+              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-orange-500 border-r-yellow-500 animate-spin"></div>
               {/* Pulsing center */}
-              <div className="absolute inset-2 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 animate-pulse"></div>
+              <div className="absolute inset-2 rounded-full bg-gradient-to-br from-orange-500/20 to-yellow-500/20 animate-pulse"></div>
             </div>
           </div>
-          <p className="text-white font-semibold text-lg">Loading...</p>
-          <p className="text-slate-400 text-sm mt-2">Please wait</p>
+          <p className="text-gray-800 font-semibold text-lg">Loading...</p>
+          <p className="text-gray-500 text-sm mt-2">Please wait</p>
         </div>
       </div>
     );
@@ -351,22 +360,22 @@ export function OmegleApp() {
   // Error screen
   if (appState === "error") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-white flex items-center justify-center p-4 relative overflow-hidden">
         {/* Animated background */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-red-500/5 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-orange-500/5 rounded-full blur-3xl"></div>
+          <div className="absolute top-0 right-0 w-96 h-96 bg-orange-300/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-yellow-300/10 rounded-full blur-3xl"></div>
         </div>
 
-        <div className="relative w-full max-w-sm bg-slate-800/80 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 sm:p-8 shadow-2xl">
+        <div className="relative w-full max-w-sm bg-white/80 backdrop-blur-xl border border-orange-200 rounded-2xl p-6 sm:p-8 shadow-2xl">
           <div className="text-center">
-            <div className="w-14 h-14 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="w-8 h-8 text-red-400" />
+            <div className="w-14 h-14 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-orange-600" />
             </div>
-            <h3 className="font-semibold text-white text-lg sm:text-xl mb-2">
+            <h3 className="font-semibold text-gray-800 text-lg sm:text-xl mb-2">
               {error?.includes("skipped") || error?.includes("disconnected") || error?.includes("blocked") ? "Chat Ended" : "Oops!"}
             </h3>
-            <p className="text-slate-300 text-sm sm:text-base mb-6 leading-relaxed">
+            <p className="text-gray-600 text-sm sm:text-base mb-6 leading-relaxed">
               {error}
             </p>
             <button
@@ -381,7 +390,7 @@ export function OmegleApp() {
                 setError(null);
               }}
               disabled={isLoading}
-              className="w-full px-4 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 disabled:from-slate-600 disabled:to-slate-500 text-white font-semibold rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/30 active:scale-95 transform text-sm sm:text-base disabled:opacity-70"
+              className="w-full px-4 py-2.5 sm:py-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-400 disabled:to-gray-300 text-white font-semibold rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-orange-500/30 active:scale-95 transform text-sm sm:text-base disabled:opacity-70"
             >
               {isLoading ? "Loading..." : "Try Again"}
             </button>
@@ -403,7 +412,8 @@ export function OmegleApp() {
 
   // Waiting for match screen
   if (appState === "waiting" && session) {
-    const showNoUsers = totalWaiting === 0 || (totalWaiting === 1 && queuePosition === 1);
+    // Only show "No Users Online" if truly alone (position 1 of 1)
+    const showNoUsers = totalWaiting <= 1 && queuePosition <= 1;
     
     return (
       <WaitingQueue
@@ -447,8 +457,8 @@ export function OmegleApp() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-      <div className="text-white">Loading...</div>
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-white flex items-center justify-center">
+      <div className="text-gray-800">Loading...</div>
     </div>
   );
 }

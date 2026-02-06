@@ -16,7 +16,7 @@ import {
 import { matchingEngine } from "@/lib/matching-algorithm";
 import { RedisService, initializeRedis } from "@/lib/redis-client";
 
-const QUEUE_CHECK_INTERVAL = 500; // Reduced from 2000ms to match frontend polling
+const QUEUE_CHECK_INTERVAL = 300; // Backend matching check every 300ms
 
 // Initialize Redis on first import
 let redisInitialized = false;
@@ -50,9 +50,16 @@ function startMatchingInterval() {
   }
 }
 
+// Helper: Delay before matching to ensure events are delivered
+async function delayBeforeMatching(delayMs: number = 50): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, delayMs));
+}
+
 async function updateQueuePositions() {
   try {
     const queue = await RedisService.getQueue();
+    // Count only actual queue users (not pending requeue)
+    const totalWaiting = queue.length;
     
     for (let index = 0; index < queue.length; index++) {
       const user = queue[index];
@@ -60,7 +67,7 @@ async function updateQueuePositions() {
         type: "queue_update",
         payload: {
           position: index + 1,
-          totalWaiting: queue.length,
+          totalWaiting: totalWaiting > 0 ? totalWaiting : 1, // At least 1 (self)
         },
       };
       await RedisService.pushEvent(user.id, event);
@@ -68,7 +75,7 @@ async function updateQueuePositions() {
       // Also update the session with queue position
       const session = await RedisService.getSession(user.id);
       if (session) {
-        session.queuePosition = queue.length;
+        session.queuePosition = totalWaiting;
         await RedisService.setSession(user.id, session);
       }
     }
@@ -110,15 +117,27 @@ async function validateUserConnection(userId: string): Promise<boolean> {
 
 /**
  * Detect and clean up offline users
+ * Timeout: 60 seconds of no heartbeat = offline
  */
 async function cleanupOfflineUsers() {
   try {
+    const now = Date.now();
+    if (typeof global !== "undefined") {
+      const globalAny = global as any;
+      // Only run cleanup every 10 seconds max to avoid slowdowns
+      if (globalAny.lastOfflineCleanup && now - globalAny.lastOfflineCleanup < 10000) {
+        return;
+      }
+      globalAny.lastOfflineCleanup = now;
+    }
+
     const queue = await RedisService.getQueue();
+    const HEARTBEAT_TIMEOUT = 60000; // 60 seconds (standardized)
 
     for (const user of queue) {
       const timeSinceHeartbeat = Date.now() - user.lastHeartbeat;
 
-      if (timeSinceHeartbeat > 30000) {
+      if (timeSinceHeartbeat > HEARTBEAT_TIMEOUT) {
         console.log(`[Backend] Removing offline user from queue: ${user.name}`);
         await RedisService.removeFromQueue(user.id);
       }
@@ -299,28 +318,28 @@ async function sendMessageWithRetry(
   return { success: false, error: "Max retries exceeded" };
 }
 
-// Helper function to perform a direct match between two users
+// Helper function to perform a direct match between two users with rollback support
 async function performDirectMatch(user1: ChatUser, user2: ChatUser) {
+  const roomId = generateRoomId();
+  const commonInterests = matchingEngine.getCommonInterests(user1, user2);
+
+  const room: ChatRoom = {
+    id: roomId,
+    user1Id: user1.id,
+    user2Id: user2.id,
+    user1Name: user1.name,
+    user2Name: user2.name,
+    commonInterests,
+    messages: [],
+    createdAt: Date.now(),
+    lastActivity: Date.now(),
+  };
+
   try {
-    const roomId = generateRoomId();
-    const commonInterests = matchingEngine.getCommonInterests(user1, user2);
-
-    const room: ChatRoom = {
-      id: roomId,
-      user1Id: user1.id,
-      user2Id: user2.id,
-      user1Name: user1.name,
-      user2Name: user2.name,
-      commonInterests,
-      messages: [],
-      createdAt: Date.now(),
-      lastActivity: Date.now(),
-    };
-
-    // Store room in Redis
+    // Step 1: Create room
     await RedisService.setRoom(roomId, room);
 
-    // Update user statuses
+    // Step 2: Update user statuses
     user1.status = "matched";
     user1.lastHeartbeat = Date.now();
     user2.status = "matched";
@@ -329,7 +348,7 @@ async function performDirectMatch(user1: ChatUser, user2: ChatUser) {
     await RedisService.setUser(user1.id, user1);
     await RedisService.setUser(user2.id, user2);
 
-    // Update sessions
+    // Step 3: Update sessions
     const session1 = await RedisService.getSession(user1.id);
     const session2 = await RedisService.getSession(user2.id);
     
@@ -344,7 +363,8 @@ async function performDirectMatch(user1: ChatUser, user2: ChatUser) {
       await RedisService.setSession(user2.id, session2);
     }
 
-    const payload: MatchFoundPayload = {
+    // Step 4: Queue match events for both users
+    const payload1: MatchFoundPayload = {
       matchedUser: {
         id: user2.id,
         name: user2.name,
@@ -355,45 +375,76 @@ async function performDirectMatch(user1: ChatUser, user2: ChatUser) {
       commonInterests,
     };
 
-    // Queue match events for both users
+    const payload2: MatchFoundPayload = {
+      matchedUser: {
+        id: user1.id,
+        name: user1.name,
+        interests: user1.interests,
+        color: user1.color,
+      },
+      roomId,
+      commonInterests,
+    };
+
     await RedisService.pushEvent(user1.id, {
       type: "match_found",
-      payload,
+      payload: payload1,
     });
 
     await RedisService.pushEvent(user2.id, {
       type: "match_found",
-      payload: {
-        matchedUser: {
-          id: user1.id,
-          name: user1.name,
-          interests: user1.interests,
-          color: user1.color,
-        },
-        roomId,
-        commonInterests,
-      },
+      payload: payload2,
     });
 
-    // Remove matched users from queue
+    // Step 5: Remove matched users from queue
     await RedisService.removeFromQueue(user1.id);
     await RedisService.removeFromQueue(user2.id);
+
+    // Step 6: Record this match to prevent re-matching
+    await RedisService.recordMatch(user1.id, user2.id);
 
     console.log(`[Backend] Matched ${user1.name} with ${user2.name}`);
   } catch (error) {
     console.error("[Backend] performDirectMatch error:", error);
+    
+    // Rollback on failure
+    console.log(`[Backend] Rolling back match for ${user1.id} and ${user2.id}`);
+    try {
+      // Clean up failed match
+      await RedisService.deleteRoom(roomId);
+      
+      // Don't rollback user/session updates as they may be partially complete
+      // Instead, ensure users can at least be recovered
+      console.log("[Backend] Rollback completed");
+    } catch (rollbackError) {
+      console.error("[Backend] Rollback failed:", rollbackError);
+      // Log error but continue - partial state is better than crashing
+    }
   }
 }
 
 async function performMatchingAsync() {
   try {
+    // STEP 0: Clean up stale sessions periodically (every ~10 matching cycles = ~5 seconds)
+    const now = Date.now();
+    if (typeof global !== "undefined") {
+      const globalAny = global as any;
+      if (!globalAny.lastSessionCleanup || now - globalAny.lastSessionCleanup > 5000) {
+        const cleanedCount = await RedisService.cleanupExpiredSessions();
+        if (cleanedCount > 0) {
+          console.log(`[Backend] Cleaned up ${cleanedCount} expired sessions`);
+        }
+        globalAny.lastSessionCleanup = now;
+      }
+    }
+    
     // STEP 1: Clean up offline users from queue (those with no heartbeat for 30s)
     await cleanupOfflineUsers();
 
     const queue = await RedisService.getQueue();
     if (queue.length < 2) return;
 
-    const pairs = matchingEngine.findMatches(queue);
+    const pairs = await matchingEngine.findMatches(queue);
 
     for (const [user1, user2] of pairs) {
       const roomId = generateRoomId();
@@ -472,6 +523,9 @@ async function performMatchingAsync() {
       // Remove matched users from queue
       await RedisService.removeFromQueue(user1.id);
       await RedisService.removeFromQueue(user2.id);
+
+      // Record this match in Redis for persistent tracking (prevent re-matching for 1 hour)
+      await RedisService.recordMatch(user1.id, user2.id);
     }
 
     // Update queue positions for remaining users
@@ -508,6 +562,20 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const action = searchParams.get("action");
+
+  // Process pending requeues periodically
+  const pendingRequeueUserIds = await RedisService.getPendingRequeues();
+  for (const userId of pendingRequeueUserIds) {
+    const user = await RedisService.getUser(userId);
+    if (user && user.status === "waiting") {
+      // User still exists and is still in waiting state, add them back to queue
+      await RedisService.pushToQueue(user);
+      console.log(`[Backend] Processed pending requeue for user ${userId}`);
+    }
+  }
+  if (pendingRequeueUserIds.length > 0) {
+    await updateQueuePositions();
+  }
 
   if (action === "poll") {
     const userId = searchParams.get("userId");
@@ -582,8 +650,28 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case "join_queue": {
         const newUserId = userId || generateUserId();
+        
+        // Check if user already in queue (prevent duplicate entries)
+        const alreadyInQueue = await RedisService.isUserInQueue(newUserId);
+        if (alreadyInQueue) {
+          console.log(`[Backend] User ${newUserId} already in queue, aborting duplicate join`);
+          const queue = await RedisService.getQueue();
+          const queuePos = queue.findIndex((u) => u.id === newUserId) + 1;
+          return Response.json({
+            success: true,
+            userId: newUserId,
+            isDuplicate: true,
+            queuePosition: queuePos,
+            totalWaiting: queue.length,
+          });
+        }
+
         const sessionToken = generateUserId();
         const userColor = generateUserColor();
+        
+        // Load blocked users from previous session if it exists
+        const previousSession = await RedisService.getSession(newUserId);
+        const blockedUsers = previousSession?.blockedUsers || [];
 
         const user: ChatUser = {
           id: newUserId,
@@ -592,7 +680,7 @@ export async function POST(request: NextRequest) {
           status: "waiting",
           connectedAt: Date.now(),
           lastHeartbeat: Date.now(),
-          blockedUsers: [],
+          blockedUsers: blockedUsers,  // Preserve from previous session
           color: userColor,
         };
 
@@ -616,7 +704,7 @@ export async function POST(request: NextRequest) {
           roomId: null,
           queuePosition: queueLength,
           matchedUserId: null,
-          blockedUsers: [],
+          blockedUsers: blockedUsers,  // Preserve blocked users
         };
 
         await RedisService.setSession(newUserId, session);
@@ -627,15 +715,19 @@ export async function POST(request: NextRequest) {
         // IMMEDIATE MATCHING: Try to match this user with existing queue users
         if (queue.length >= 2) {
           const currentQueue = await RedisService.getQueue();
-          const pairs = matchingEngine.findMatches(currentQueue);
-          
-          if (pairs.length > 0) {
-            console.log(`[Backend] Immediate match found for new user! Pairs: ${pairs.length}`);
-            for (const [user1, user2] of pairs) {
-              await performDirectMatch(user1, user2);
+          // Verify user is still in current queue (prevent stale data)
+          const userStillInQueue = currentQueue.some((u) => u.id === newUserId);
+          if (userStillInQueue) {
+            const pairs = await matchingEngine.findMatches(currentQueue);
+            
+            if (pairs.length > 0) {
+              console.log(`[Backend] Immediate match found for new user! Pairs: ${pairs.length}`);
+              for (const [user1, user2] of pairs) {
+                await performDirectMatch(user1, user2);
+              }
+              // Update queue positions again after matching
+              await updateQueuePositions();
             }
-            // Update queue positions again after matching
-            await updateQueuePositions();
           }
         }
 
@@ -698,7 +790,8 @@ export async function POST(request: NextRequest) {
           payload: { reason: "Your chat partner left to find someone else" },
         });
 
-        // Put both users back in queue IMMEDIATELY
+        // BOTH users back into queue IMMEDIATELY
+        // recordMatch() prevents them from being re-matched for 1 hour
         user.status = "waiting";
         await RedisService.setUser(userId, user);
         await RedisService.pushToQueue(user);
@@ -709,6 +802,9 @@ export async function POST(request: NextRequest) {
           await RedisService.setUser(otherUserId, otherUser);
           await RedisService.pushToQueue(otherUser);
         }
+
+        // Record match to prevent re-matching for 1 hour (handled by matching algorithm)
+        await RedisService.recordMatch(userId, otherUserId);
 
         // Clear sessions
         const session = await RedisService.getSession(userId);
@@ -727,7 +823,16 @@ export async function POST(request: NextRequest) {
 
         // Delete room
         await RedisService.deleteRoom(roomId);
+        
+        // Update queue positions (sends queue_update events to both users)
         await updateQueuePositions();
+        
+        // Wait 200ms to ensure both users receive their queue position updates
+        // before attempting matching (prevents one user from missing the position update)
+        await delayBeforeMatching(200);
+        
+        // Now trigger matching
+        await performMatchingAsync();
 
         return Response.json({ success: true });
       }
@@ -762,6 +867,13 @@ export async function POST(request: NextRequest) {
           await RedisService.setUser(userId, user);
         }
 
+        // Also update session with blocked users  
+        let session = await RedisService.getSession(userId);
+        if (session) {
+          session.blockedUsers = user.blockedUsers;
+          await RedisService.setSession(userId, session);
+        }
+
         // Notify blocked user
         await RedisService.pushEvent(otherUserId, {
           type: "user_blocked",
@@ -781,7 +893,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Clear sessions
-        const session = await RedisService.getSession(userId);
+        session = await RedisService.getSession(userId);
         if (session) {
           session.roomId = null;
           session.matchedUserId = null;
@@ -797,7 +909,16 @@ export async function POST(request: NextRequest) {
 
         // Delete room
         await RedisService.deleteRoom(roomId);
+        
+        // Update queue positions (sends queue_update events to both users)
         await updateQueuePositions();
+        
+        // Wait 200ms to ensure both users receive their queue position updates
+        // before attempting matching (prevents one user from missing the position update)
+        await delayBeforeMatching(200);
+        
+        // Now trigger matching
+        await performMatchingAsync();
 
         return Response.json({ success: true });
       }
@@ -904,8 +1025,15 @@ export async function POST(request: NextRequest) {
 
           console.log("[Backend] User cleanup complete");
 
-          // Update queue positions for remaining users
+          // Update queue positions (sends queue_update events to remaining users)
           await updateQueuePositions();
+          
+          // Wait 200ms to ensure users receive their queue position updates
+          // before attempting matching (prevents missing the position update)
+          await delayBeforeMatching(200);
+          
+          // Now trigger matching
+          await performMatchingAsync();
         }
 
         return Response.json({ success: true });
@@ -917,6 +1045,7 @@ export async function POST(request: NextRequest) {
         }
 
         try {
+          const HEARTBEAT_TIMEOUT = 60000; // 60 seconds (standardized)
           const user = await RedisService.getUser(userId);
           if (!user) {
             return Response.json({ error: "User session expired" }, { status: 401 });
@@ -940,7 +1069,7 @@ export async function POST(request: NextRequest) {
               if (otherUser) {
                 const partnerHeartbeatAge = Date.now() - otherUser.lastHeartbeat;
 
-                if (partnerHeartbeatAge > 30000) {
+                if (partnerHeartbeatAge > HEARTBEAT_TIMEOUT) {
                   // Partner is offline
                   console.log(
                     `[Backend] Heartbeat: Partner ${otherUser.name} offline (${partnerHeartbeatAge}ms)`
