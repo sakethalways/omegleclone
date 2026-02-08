@@ -551,6 +551,69 @@ export const RedisService = {
     }
   },
 
+  /**
+   * Push multiple events for different users in batch
+   * Reduces multiple Redis calls to a single pipelined operation
+   */
+  async pushEventsBatch(
+    eventList: Array<{ userId: string; event: { type: string; payload: unknown } }>
+  ): Promise<void> {
+    const MAX_EVENTS_PER_USER = 100;
+    
+    if (isRedisConnected()) {
+      try {
+        // Use pipeline for batch operations
+        const pipeline = redisClient.multi();
+        
+        for (const { userId, event } of eventList) {
+          // Check queue size first (need to fetch individually)
+          const queueSize = await redisClient.lLen(`events:${userId}`);
+          
+          if (queueSize >= MAX_EVENTS_PER_USER) {
+            // Remove oldest event
+            pipeline.lPop(`events:${userId}`);
+          }
+          
+          // Add new event
+          pipeline.rPush(
+            `events:${userId}`,
+            JSON.stringify(event)
+          );
+          
+          // Set expiry
+          pipeline.expire(`events:${userId}`, 300);
+        }
+        
+        await pipeline.exec();
+      } catch (error) {
+        console.error("[Redis] pushEventsBatch failed:", error);
+        // Fallback: push to fallback storage individually
+        for (const { userId, event } of eventList) {
+          if (!fallbackStorage.userEvents.has(userId)) {
+            fallbackStorage.userEvents.set(userId, []);
+          }
+          const events = fallbackStorage.userEvents.get(userId)!;
+          if (events.length >= MAX_EVENTS_PER_USER) {
+            events.shift();
+          }
+          events.push(event);
+        }
+      }
+    } else {
+      // Fallback storage
+      for (const { userId, event } of eventList) {
+        if (!fallbackStorage.userEvents.has(userId)) {
+          fallbackStorage.userEvents.set(userId, []);
+        }
+        const events = fallbackStorage.userEvents.get(userId)!;
+        if (events.length >= MAX_EVENTS_PER_USER) {
+          events.shift();
+        }
+        events.push(event);
+      }
+    }
+  },
+
   async getEvents(userId: string): Promise<Array<{ type: string; payload: unknown }>> {
     if (isRedisConnected()) {
       try {

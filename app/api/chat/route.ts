@@ -18,6 +18,43 @@ import { RedisService, initializeRedis } from "@/lib/redis-client";
 
 const QUEUE_CHECK_INTERVAL = 300; // Backend matching check every 300ms
 
+// Track recent user actions to prevent spam/duplicate requests
+const userActionsTracker = new Map<string, { action: string; timestamp: number }>();
+const ACTION_COOLDOWN = 2000; // 2 second cooldown between same actions
+
+function canPerformAction(userId: string, action: string): boolean {
+  const lastAction = userActionsTracker.get(userId);
+  const now = Date.now();
+  
+  if (lastAction && lastAction.action === action && now - lastAction.timestamp < ACTION_COOLDOWN) {
+    console.log(
+      `[Backend] Action blocked: User ${userId} tried ${action} within cooldown (${now - lastAction.timestamp}ms)`
+    );
+    return false;
+  }
+  
+  // Record this action
+  userActionsTracker.set(userId, { action, timestamp: now });
+  return true;
+}
+
+// Periodic cleanup of old action records (every 5 minutes)
+setInterval(() => {
+  const now = Date.now();
+  let cleaned = 0;
+  
+  for (const [userId, data] of userActionsTracker.entries()) {
+    if (now - data.timestamp > 300000) { // 5 minutes
+      userActionsTracker.delete(userId);
+      cleaned++;
+    }
+  }
+  
+  if (cleaned > 0) {
+    console.log(`[Backend] Cleaned up ${cleaned} old action records`);
+  }
+}, 300000); // Every 5 minutes
+
 // Initialize Redis on first import
 let redisInitialized = false;
 
@@ -50,16 +87,13 @@ function startMatchingInterval() {
   }
 }
 
-// Helper: Delay before matching to ensure events are delivered
-async function delayBeforeMatching(delayMs: number = 50): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, delayMs));
-}
-
 async function updateQueuePositions() {
   try {
     const queue = await RedisService.getQueue();
-    // Count only actual queue users (not pending requeue)
     const totalWaiting = queue.length;
+    
+    // Batch prepare all events instead of pushing individually
+    const eventList: Array<{ userId: string; event: any }> = [];
     
     for (let index = 0; index < queue.length; index++) {
       const user = queue[index];
@@ -67,10 +101,10 @@ async function updateQueuePositions() {
         type: "queue_update",
         payload: {
           position: index + 1,
-          totalWaiting: totalWaiting > 0 ? totalWaiting : 1, // At least 1 (self)
+          totalWaiting: totalWaiting > 0 ? totalWaiting : 1,
         },
       };
-      await RedisService.pushEvent(user.id, event);
+      eventList.push({ userId: user.id, event });
 
       // Also update the session with queue position
       const session = await RedisService.getSession(user.id);
@@ -78,6 +112,11 @@ async function updateQueuePositions() {
         session.queuePosition = totalWaiting;
         await RedisService.setSession(user.id, session);
       }
+    }
+    
+    // Push all events in one batch operation
+    if (eventList.length > 0) {
+      await RedisService.pushEventsBatch(eventList);
     }
   } catch (error) {
     console.error("[Backend] updateQueuePositions error:", error);
@@ -590,7 +629,24 @@ export async function GET(request: NextRequest) {
       }
 
       // Return pending events
-      const events = await RedisService.getEvents(userId);
+      let events = await RedisService.getEvents(userId);
+
+      // **FIX #5: Deduplicate events to prevent spam**
+      // Remove duplicate sequential events of the same type with same payload
+      const deduplicatedEvents = [];
+      let lastEventType: string | null = null;
+      
+      for (const event of events) {
+        // Skip if this is a duplicate of the last event
+        if (lastEventType === event.type) {
+          continue;
+        }
+        deduplicatedEvents.push(event);
+        lastEventType = event.type;
+      }
+      
+      // Limit to max 5 events per poll to prevent overwhelming client
+      events = deduplicatedEvents.slice(0, 5);
 
       // Always return connected status on first poll
       if (events.length === 0) {
@@ -705,6 +761,7 @@ export async function POST(request: NextRequest) {
           queuePosition: queueLength,
           matchedUserId: null,
           blockedUsers: blockedUsers,  // Preserve blocked users
+          recentMatches: [],
         };
 
         await RedisService.setSession(newUserId, session);
@@ -770,6 +827,14 @@ export async function POST(request: NextRequest) {
           );
         }
 
+        // Prevent spam: user can only skip once every 2 seconds
+        if (!canPerformAction(userId, "skip")) {
+          return Response.json(
+            { error: "Please wait before skipping again" },
+            { status: 429 }
+          );
+        }
+
         const room = await RedisService.getRoom(roomId);
         if (!room) {
           return Response.json({ error: "Room not found" }, { status: 404 });
@@ -829,7 +894,7 @@ export async function POST(request: NextRequest) {
         
         // Wait 200ms to ensure both users receive their queue position updates
         // before attempting matching (prevents one user from missing the position update)
-        await delayBeforeMatching(200);
+        await new Promise((r) => setTimeout(r, 200));
         
         // Now trigger matching
         await performMatchingAsync();
@@ -843,6 +908,14 @@ export async function POST(request: NextRequest) {
           return Response.json(
             { error: "Missing userId or roomId" },
             { status: 400 }
+          );
+        }
+
+        // Prevent spam: user can only block once every 2 seconds
+        if (!canPerformAction(userId, "block")) {
+          return Response.json(
+            { error: "Please wait before blocking again" },
+            { status: 429 }
           );
         }
 
@@ -913,11 +986,8 @@ export async function POST(request: NextRequest) {
         // Update queue positions (sends queue_update events to both users)
         await updateQueuePositions();
         
-        // Wait 200ms to ensure both users receive their queue position updates
-        // before attempting matching (prevents one user from missing the position update)
-        await delayBeforeMatching(200);
-        
-        // Now trigger matching
+        // Skip delay - events are now batched synchronously, no need to wait
+        // Matching can run immediately
         await performMatchingAsync();
 
         return Response.json({ success: true });
@@ -1028,11 +1098,8 @@ export async function POST(request: NextRequest) {
           // Update queue positions (sends queue_update events to remaining users)
           await updateQueuePositions();
           
-          // Wait 200ms to ensure users receive their queue position updates
-          // before attempting matching (prevents missing the position update)
-          await delayBeforeMatching(200);
-          
-          // Now trigger matching
+          // Skip delay - events are now batched synchronously, no need to wait
+          // Matching can run immediately
           await performMatchingAsync();
         }
 

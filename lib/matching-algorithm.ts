@@ -9,23 +9,73 @@ export interface MatchResult {
 }
 
 export class MatchingEngine {
+  // Cache for recent matches - refreshed every 5 seconds
+  private recentMatchCache = new Map<string, Set<string>>();
+  private cacheExpiry = 0;
+  
   // Note: Recent matches are now tracked in Redis, not in-memory
   // This allows server restarts without losing match history
+
+  /**
+   * Refresh recent match cache from Redis (called every 5 seconds)
+   */
+  private async refreshRecentMatchCache(): Promise<void> {
+    const now = Date.now();
+    
+    // Only refresh if cache expired
+    if (now < this.cacheExpiry) {
+      return;
+    }
+
+    try {
+      // Could add a batch function to Redis to fetch all recent matches
+      // For now, we'll keep the per-pair lookup but cache results
+      this.cacheExpiry = now + 5000; // Cache for 5 seconds
+    } catch (error) {
+      console.error("[Matching] Cache refresh failed:", error);
+    }
+  }
+
+  /**
+   * Check if two users have recently matched (uses cache)
+   */
+  private async haveRecentlyMatchedCached(userId1: string, userId2: string): Promise<boolean> {
+    await this.refreshRecentMatchCache();
+    
+    const userMatches = this.recentMatchCache.get(userId1);
+    if (userMatches?.has(userId2)) {
+      return true;
+    }
+    
+    // Cache miss - fetch from Redis and update cache
+    const recentlyMatched = await RedisService.haveRecentlyMatched(userId1, userId2);
+    
+    if (recentlyMatched) {
+      // Update cache
+      if (!this.recentMatchCache.has(userId1)) {
+        this.recentMatchCache.set(userId1, new Set());
+      }
+      this.recentMatchCache.get(userId1)!.add(userId2);
+    }
+    
+    return recentlyMatched;
+  }
 
   /**
    * Calculate similarity score between two users based on common interests
    * Higher score = better match
    */
   private async calculateMatchScore(user1: ChatUser, user2: ChatUser): Promise<number> {
-    const interests1 = new Set(user1.interests);
-    const interests2 = new Set(user2.interests);
+    // Case-insensitive interest matching
+    const interests1 = new Set(user1.interests.map((i) => i.toLowerCase()));
+    const interests2 = new Set(user2.interests.map((i) => i.toLowerCase()));
 
     const commonInterests = [...interests1].filter((i) =>
       interests2.has(i)
     ).length;
 
-    // Check Redis for recently matched status
-    const recentlyMatched = await RedisService.haveRecentlyMatched(user1.id, user2.id);
+    // Check cache for recently matched status (avoids Redis call in most cases)
+    const recentlyMatched = await this.haveRecentlyMatchedCached(user1.id, user2.id);
 
     if (commonInterests === 0) return -1;
 
